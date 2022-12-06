@@ -1,0 +1,25 @@
+From 6e6965bb6c6245ba1f9788e00ab62b5970c0f478 Mon Sep 17 00:00:00 2001
+From: ondrej <pesej.ondrek@gmail.com>
+Date: Sat, 27 Aug 2022 11:06:43 +0200
+Subject: [PATCH] grass.py: fix missing parameters in gettext.install()
+
+---
+ lib/init/grass.py | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/lib/init/grass.py b/lib/init/grass.py
+index 3914c458df..8d55916e19 100755
+--- a/lib/init/grass.py
++++ b/lib/init/grass.py
+@@ -1560,10 +1560,7 @@ def set_language(grass_config_dir):
+         del os.environ["LC_ALL"]  # Remove LC_ALL to not override LC_NUMERIC
+ 
+     # From now on enforce the new language
+-    if encoding:
+-        gettext.install("grasslibs", gpath("locale"), codeset=encoding)
+-    else:
+-        gettext.install("grasslibs", gpath("locale"))
++    gettext.install("grasslibs", gpath("locale"))
+ 
+ 
+ def lock_mapset(mapset_path, force_gislock_removal, user):

@@ -1,82 +1,75 @@
 # QGIS on Apple Silicon
 
-This project aims to build and package [QGIS](https://www.qgis.org) on macOS ARM64. We use [homebrew](https://brew.sh) to bootstrap build environment with [additional formulae](https://github.com/DingoBits/homebrew-dingobits) to fulfill all dependencies.
+This project aims to build and package [QGIS](https://www.qgis.org) on macOS for ARM64. We use [Homebrew](https://brew.sh) to bootstrap build environment with [additional formulae](https://github.com/DingoBits/homebrew-dingobits) to fulfill dependencies.
 
-This is a work in progress. Builds are experimental and bugs are to be expected. Due to complex dependencies and numerous workarounds, a fully functional build script will not be available soon. 
+This is a work in progress. Builds are experimental and bugs are to be expected. Due to complex dependencies and numerous workarounds, a fully-featured build will not be available soon.
 
-## Requirements
-- ARM-based Mac
-   - At least 16 GB of RAM is recommended as compile can use up to 8 GB
-- Xcode CLI: ``xcode-select --install``
-- Homebrew: ``/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"``
+## Table of Contents
 
-## Build Instructions
-These are only general steps. Make sure to configure build options. 
-1. Install Build Tools
+1. [Caveats](#caveats)
+2. [Ways to Install](#ways-to-install)
+3. [Building](#building)
+4. [Packaging](#packaging)
+
+---
+
+## Caveats
+
+QGIS currently only supports Qt 5, (the open source version of) which doesn’t officially support Apple Silicon. QGIS also relies on QtWebkit, which was depreciated a year before Apple Silicon launched and requires an increasing amount of patches to build. This means **bugs are to be expected**. If you run into one that’s not present in the official AMD64 build, [file an issue](https://github.com/DingoBits/qgis-arm64-apple/issues).
+
+**Proprietary libraries, including ERDAS ECW/JP2, MrSID, Oracle Spatial Database and SAP HANA, are currently not available** since none of them have released an arm64 version for macOS.
+
+I only use a subset of features that QGIS offer, which means **some features will be relatively untested** beyond `make test`. If you encounter a bug, [file an issue](https://github.com/DingoBits/qgis-arm64-apple/issues). I also don’t have the time or the energy to create a full-featured build at the moment (it’ll take weeks of full-time work). My plan is to create a build per QGIS release and troubleshoot along the way, hopefully to come up with a fully functional build script down the road,
+
+## Ways to Install
+
+### 1. Install Pre-packaged QGIS (The Easy Way) 
+
+I maintain a packaged QGIS for my own use, which is also [released in this repo](https://github.com/DingoBits/qgis-arm64-apple/releases). Check out the release page for missing features, dependencies used and other build information for each release. 
+
+In principle, you shouldn’t trust binaries from random strangers, but I trust myself.  My builds are not codesigned, which means you must right-click when you open the app for the first time, or you will encounter an error message subtly implying I didn’t pay Apple $100/year for the privilege of having them check the app.
+
+### 2. Install from Homebrew Cask
+
+I maintain [a Homebrew tap](https://github.com/DingoBits/homebrew-dingobits) for the pre-packaged QGIS, as well as some of its dependencies. This will allow homebrew to automatically update QGIS when I release a new version. To install:
+
 ```
-brew install --formula astyle autoconf automake bash-completion ccache cmake help2man libtool meson ninja pandoc pkg-config wget
+brew install --cask dingobits/dingobits/qgis
 ```
-2. Install Dependencies
+
+### 3. Install from MacPorts
+
+Unrelated to this project, [Veence](https://github.com/Veence) maintains [a QGIS port for MacPorts](https://ports.macports.org/port/qgis3/details). Unlike Homebrew Cask,  **MacPorts will build QGIS instead of downloading a pre-packaged version**, which may take a long time. **`brew` and `ports` are potentially incompatible**, so it’s best to stick to your preferred package manager. To install:
+
 ```
-brew install --formula bison boost brotli bzip2 exiv2 expat fcgi ffmpeg fftw flex fontconfig freetds freetype freexl gdal geos gettext gmp gsl hdf5 jpeg-xl json-c lapack laszip libdeflate libffi libgeotiff libheif libkml libmpc libomp libpng librasterlite2 librttopo libspatialite libssh2 libtiff libtool libunistring libxml2 libzip little-cms2 lz4 minizip mpfr mysql netcdf openblas openjpeg openssl@1.1 openssl@3 pcre pdal poppler postgresql@14 proj protobuf python3 qca qt@5 dingobits/dingobits/qtwebkit qwt-qt5 spatialindex sqlite swig unixodbc uriparser xerces-c webp wxwidgets xz zlib zstd
+sudo ports install qgis3
 ```
-3. Optional - Install pyenv
-    - You can skip this step if you don't mind modules being installed to your Python base.
-    - Build systems don't play well with venv, thus pyenv.
+
+Please reach out to the MacPorts community if you encounter any issues.
+
+### 4. Install the official x64 Package with Rosetta
+
+If you need some of the missing features, such as ERDAS ECW/JP2, your best option is to use [the official x64 package](https://qgis.org/en/site/forusers/download.html) with Rosetta.
+
+Alternatively, you can use a GNU/Linux distribution with aarch64 packages for QGIS  (e.g. Arch, Debian, Fedora) in a virtual machine or on [Asahi Linux](https://asahilinux.org).
+
+## Building
+
+I maintain [a build script that bootstraps from homebrew](https://github.com/DingoBits/qgis-arm64-apple/blob/main/build.sh). At this time, **the script is for reference only** as it’s neither complete nor fully tested. If you run the script, it’s highly likely that the build will fail at a certain point. I recommend you to follow the script in terminal, and use `ccmake` for troubleshooting.
+
+If you’re brave enough to do it truly from the scratch, I applaud your spirit but I’m afraid you’re on your own. That being said, I do offer some [patches](https://github.com/DingoBits/qgis-arm64-apple/tree/main/patches) to help you along the way.  Also, I recommend at least 16 GB of RAM, as compiling Python bindings alone can use up to 8 GB of RAM, and consume your SSD for SWAP at 200GBW/hour.
+
+## Packaging
+
+If you don’t intend to distribute your QGIS build, the app bundle in `build/output/bin/QGIS.app` would suffice. However, packaging for distribution is not as straightforward.
+
+As per QGIS documentation, if  you build QGIS with `-DQGIS_MACAPP_BUNDLE=1`, `make install` *should* automatically package a complete build in `CMAKE_INSTALL_PREFIX`, but it doesn't work properly. Most libraries won't be packaged, and  many packaged library will still have their paths pointed to homebrew.  The result is two copies of the same library gets loaded into memory and causes segfault.
+
+The solution at the moment involves a little manual labour. Use `macdeployqt` to continue packaging a more complete build, and then manually add still missing libraries, e.g. Python. Copy the necessary Python modules to `Resources/python`. Then rewrite install paths with `install_name_tool` in `Frameworks` and `PlugIns`. You can automate this step with `for` loop. For example,
+
 ```
-brew install pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
-PYTHON_CONFIGURE_OPTS="--enable-framework --enable-ipv6 --enable-loadable-sqlite-extensions --enable-optimizations --with-lto=fat --with-system-expat --with-system-ffi --with-system-libmpdec" pyenv install 3.9.15
-pyenv local 3.9.15
-python3 -m pip install --upgrade pip
+for i in *.dylib
+	install_name_tool -id "@executable_path/../PlugIns/$i" "$i"
+end
 ```
-3. Build GDAL
-    - Homebrew-provided GDAL has fewer features than QGIS needs.
-```
-curl -fsSLO http://download.osgeo.org/gdal/3.5.3/gdal-3.5.3.tar.xz
-tar xf gdal-3.5.3.tar.xz
-mkdir -p gdal-3.5.3/build
-cd gdal-3.5.3/build || exit
-cmake -G Ninja ..
-ninja
-ninja install
-```
-4. Build GrassGIS
-```
-pip3 install matplotlib numpy pillow ply python-dateutil six termcolor wxpython
-curl -fsSLo grass-8.2.0.tar.gz https://github.com/OSGeo/grass/archive/refs/tags/8.2.0.tar.gz
-tar xf grass-8.2.0.tar.gz
-cd grass-8.2.0 || exit
-./configure
-make -j'nproc'
-make install
-```
-5. Build SAGA
-```
-curl -fsSLO "https://downloads.sourceforge.net/project/saga-gis/SAGA%20-%208/SAGA%20-%208.4.0/saga-8.4.0.tar.gz"
-tar xf saga-8.4.0.tar.gz
-mkdir -p "saga-8.4.0/saga-gis/build"
-cd "saga-8.4.0/saga-gis/build" || exit
-cmake -G Ninja ..
-ninja
-ninja install
-cd ../../.. || exit
-```
-6. Build PyQT
-```
-pip3 install autopep8 future httplib2 jinja2 lxml markupsafe mock nose2 owslib plotly psycopg2 pygments requests sip
-pip3 install --config-settings="--confirm-license=" pyqt5 pyqt5-sip pyqt-builder
-pip3 install pyqtnetworkauth pyqtpurchasing pyqtchart pyqt3d pyqtdatavisualization qscintilla
-```
-7. Build QGIS
-```
-curl -fsSLO https://download.qgis.org/downloads/qgis-3.28.0.tar.bz2
-tar xf qgis-3.28.0.tar.bz2
-mkdir qgis-3.28/build
-cd qgis-3.28/build || exit
-cmake -G Ninja ..
-ninja
-ninja install
-```
+

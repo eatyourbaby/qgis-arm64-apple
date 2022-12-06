@@ -1,0 +1,138 @@
+# https://github.com/yurikoles/qtwebkit/commit/1a31aaf3566235b32c26c38ef08d217a5d11ef1e
+From 1a31aaf3566235b32c26c38ef08d217a5d11ef1e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Dawid=20Wro=CC=81bel?= <me@dawidwrobel.com>
+Date: Fri, 5 Feb 2021 20:24:50 -0500
+Subject: [PATCH] Fix compilation errors on Apple Silicon.
+
+This is based on 309131edbf99fbd8bbdcc721263258395be372ce upstream commit
+by Sam Weinig (<weinig@apple.com>), which does not apply cleanly due to
+QtWebKit's codebase being too far behind the upstream.
+---
+ Source/JavaScriptCore/assembler/ARM64Assembler.h       | 6 +++---
+ Source/JavaScriptCore/assembler/ARMv7Assembler.h       | 2 +-
+ Source/JavaScriptCore/assembler/AssemblerCommon.h      | 9 +++++++++
+ Source/JavaScriptCore/b3/air/AirCCallingConvention.cpp | 2 +-
+ Source/JavaScriptCore/jit/ExecutableAllocator.h        | 4 ++--
+ Source/WTF/wtf/InlineASM.h                             | 2 +-
+ Source/WTF/wtf/Platform.h                              | 2 +-
+ 7 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/Source/JavaScriptCore/assembler/ARM64Assembler.h b/Source/JavaScriptCore/assembler/ARM64Assembler.h
+index e573620c46aaf..29e3029d2ef62 100644
+--- a/Source/JavaScriptCore/assembler/ARM64Assembler.h
++++ b/Source/JavaScriptCore/assembler/ARM64Assembler.h
+@@ -2664,7 +2664,7 @@ class ARM64Assembler {
+ 
+     static void cacheFlush(void* code, size_t size)
+     {
+-#if OS(IOS)
++#if OS(DARWIN)
+         sys_cache_control(kCacheFunctionPrepareForExecution, code, size);
+ #elif OS(LINUX)
+         size_t page = pageSize();
+@@ -3059,13 +3059,13 @@ class ARM64Assembler {
+     static int xOrSp(RegisterID reg)
+     {
+         ASSERT(!isZr(reg));
+-        ASSERT(!isIOS() || reg != ARM64Registers::x18);
++        ASSERT(!isDarwin() || reg != ARM64Registers::x18);
+         return reg;
+     }
+     static int xOrZr(RegisterID reg)
+     {
+         ASSERT(!isSp(reg));
+-        ASSERT(!isIOS() || reg != ARM64Registers::x18);
++        ASSERT(!isDarwin() || reg != ARM64Registers::x18);
+         return reg & 31;
+     }
+     static FPRegisterID xOrZrAsFPR(RegisterID reg) { return static_cast<FPRegisterID>(xOrZr(reg)); }
+diff --git a/Source/JavaScriptCore/assembler/ARMv7Assembler.h b/Source/JavaScriptCore/assembler/ARMv7Assembler.h
+index 6b9f305e92746..3384f65b80dd2 100644
+--- a/Source/JavaScriptCore/assembler/ARMv7Assembler.h
++++ b/Source/JavaScriptCore/assembler/ARMv7Assembler.h
+@@ -2354,7 +2354,7 @@ class ARMv7Assembler {
+ 
+     static void cacheFlush(void* code, size_t size)
+     {
+-#if OS(IOS)
++#if OS(DARWIN)
+         sys_cache_control(kCacheFunctionPrepareForExecution, code, size);
+ #elif OS(LINUX)
+         size_t page = pageSize();
+diff --git a/Source/JavaScriptCore/assembler/AssemblerCommon.h b/Source/JavaScriptCore/assembler/AssemblerCommon.h
+index 21ca7a20ddcec..82e0a9f3d6cba 100644
+--- a/Source/JavaScriptCore/assembler/AssemblerCommon.h
++++ b/Source/JavaScriptCore/assembler/AssemblerCommon.h
+@@ -28,6 +28,15 @@
+ 
+ namespace JSC {
+ 
++ALWAYS_INLINE bool isDarwin()
++{
++ #if OS(DARWIN)
++     return true;
++ #else
++     return false;
++ #endif
++}
++
+ ALWAYS_INLINE bool isIOS()
+ {
+ #if PLATFORM(IOS)
+diff --git a/Source/JavaScriptCore/b3/air/AirCCallingConvention.cpp b/Source/JavaScriptCore/b3/air/AirCCallingConvention.cpp
+index 63128a7c989cb..edab230f51d96 100644
+--- a/Source/JavaScriptCore/b3/air/AirCCallingConvention.cpp
++++ b/Source/JavaScriptCore/b3/air/AirCCallingConvention.cpp
+@@ -45,7 +45,7 @@ Arg marshallCCallArgumentImpl(unsigned& argumentCount, unsigned& stackOffset, Va
+         return Tmp(BankInfo::toArgumentRegister(argumentIndex));
+ 
+     unsigned slotSize;
+-    if (isARM64() && isIOS()) {
++    if (isARM64() && isDarwin()) {
+         // Arguments are packed.
+         slotSize = sizeofType(child->type());
+     } else {
+diff --git a/Source/JavaScriptCore/jit/ExecutableAllocator.h b/Source/JavaScriptCore/jit/ExecutableAllocator.h
+index 015ac8968a7b1..efb49044b1924 100644
+--- a/Source/JavaScriptCore/jit/ExecutableAllocator.h
++++ b/Source/JavaScriptCore/jit/ExecutableAllocator.h
+@@ -36,11 +36,11 @@
+ #include <wtf/RefCounted.h>
+ #include <wtf/Vector.h>
+ 
+-#if OS(IOS)
++#if OS(DARWIN)
+ #include <libkern/OSCacheControl.h>
+ #endif
+ 
+-#if OS(IOS)
++#if OS(DARWIN)
+ #include <sys/mman.h>
+ #endif
+ 
+diff --git a/Source/WTF/wtf/InlineASM.h b/Source/WTF/wtf/InlineASM.h
+index 965e28176e700..2b3e371cb9180 100644
+--- a/Source/WTF/wtf/InlineASM.h
++++ b/Source/WTF/wtf/InlineASM.h
+@@ -34,7 +34,7 @@
+ #define SYMBOL_STRING(name) #name
+ #endif
+ 
+-#if OS(IOS)
++#if OS(DARWIN)
+ #define THUMB_FUNC_PARAM(name) SYMBOL_STRING(name)
+ #else
+ #define THUMB_FUNC_PARAM(name)
+diff --git a/Source/WTF/wtf/Platform.h b/Source/WTF/wtf/Platform.h
+index a7b0f74bb7d17..95c099e7012e2 100644
+--- a/Source/WTF/wtf/Platform.h
++++ b/Source/WTF/wtf/Platform.h
+@@ -462,7 +462,7 @@
+ #define WTF_PLATFORM_GTK 1
+ #elif OS(MAC_OS_X)
+ #define WTF_PLATFORM_MAC 1
+-#elif OS(IOS)
++#elif OS(DARWIN)
+ #define WTF_PLATFORM_IOS 1
+ #if defined(TARGET_IPHONE_SIMULATOR) && TARGET_IPHONE_SIMULATOR
+ #define WTF_PLATFORM_IOS_SIMULATOR 1

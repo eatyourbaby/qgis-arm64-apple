@@ -1,0 +1,19 @@
+--- a/src/python/qgspythonutilsimpl.cpp
++++ b/src/python/qgspythonutilsimpl.cpp
+@@ -218,16 +218,6 @@
+     return;
+   }
+
+-  if ( !faultHandlerLogPath.isEmpty() )
+-  {
+-    runString( QStringLiteral( "import faulthandler" ) );
+-    QString escapedPath = faultHandlerLogPath;
+-    escapedPath.replace( '\\', QLatin1String( "\\\\" ) );
+-    escapedPath.replace( '\'', QLatin1String( "\\'" ) );
+-    runString( QStringLiteral( "fault_handler_file=open('%1', 'wt')" ).arg( escapedPath ) );
+-    runString( QStringLiteral( "faulthandler.enable(file=fault_handler_file)" ) );
+-  }
+-
+   if ( interface )
+   {
+     // initialize 'iface' object

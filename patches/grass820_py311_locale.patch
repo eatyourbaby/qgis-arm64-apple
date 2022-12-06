@@ -1,0 +1,209 @@
+From 2cd7994883e1233708c787dfda3c3d4569cbb769 Mon Sep 17 00:00:00 2001
+From: ondrej <pesej.ondrek@gmail.com>
+Date: Sat, 27 Aug 2022 20:13:39 +0200
+Subject: [PATCH] avoid using deprecated locale.getdefaultlocale()
+
+---
+ gui/wxpython/core/gcmd.py             |  6 +++++-
+ gui/wxpython/core/gconsole.py         |  6 +++++-
+ gui/wxpython/gui_core/forms.py        | 18 +++++++++++++++---
+ gui/wxpython/gui_core/ghelp.py        |  6 +++++-
+ gui/wxpython/rlisetup/frame.py        |  6 +++++-
+ lib/init/grass.py                     | 12 ++++++++++--
+ python/grass/gunittest/multirunner.py |  6 +++++-
+ python/grass/script/utils.py          |  6 +++++-
+ utils/mkhtml.py                       |  6 +++++-
+ 9 files changed, 60 insertions(+), 12 deletions(-)
+
+diff --git a/gui/wxpython/core/gcmd.py b/gui/wxpython/core/gcmd.py
+index 9bea1ee151..b85874dc24 100644
+--- a/gui/wxpython/core/gcmd.py
++++ b/gui/wxpython/core/gcmd.py
+@@ -783,7 +783,11 @@ def GetDefaultEncoding(forceUTF8=False):
+ 
+     :return: system encoding (can be None)
+     """
+-    enc = locale.getdefaultlocale()[1]
++    try:
++        # Python >= 3.11
++        enc = locale.getencoding()
++    except AttributeError:
++        enc = locale.getdefaultlocale()[1]
+     if forceUTF8 and (enc is None or enc == "UTF8"):
+         return "UTF-8"
+ 
+diff --git a/gui/wxpython/core/gconsole.py b/gui/wxpython/core/gconsole.py
+index fd09dbfedc..154c71c3dc 100644
+--- a/gui/wxpython/core/gconsole.py
++++ b/gui/wxpython/core/gconsole.py
+@@ -408,7 +408,11 @@ def Redirect(self):
+             sys.stdout = self.cmdStdOut
+             sys.stderr = self.cmdStdErr
+         else:
+-            enc = locale.getdefaultlocale()[1]
++            try:
++                # Python >= 3.11
++                enc = locale.getencoding()
++            except AttributeError:
++                enc = locale.getdefaultlocale()[1]
+             if enc:
+                 if sys.version_info.major == 2:
+                     sys.stdout = codecs.getwriter(enc)(sys.__stdout__)
+diff --git a/gui/wxpython/gui_core/forms.py b/gui/wxpython/gui_core/forms.py
+index 9a9bb5b9d4..b1c4cd47df 100644
+--- a/gui/wxpython/gui_core/forms.py
++++ b/gui/wxpython/gui_core/forms.py
+@@ -2035,7 +2035,11 @@ def __init__(self, parent, giface, task, id=wx.ID_ANY, frame=None, *args, **kwar
+                         )
+                         if p.get("value", "") and os.path.isfile(p["value"]):
+                             ifbb.Clear()
+-                            enc = locale.getdefaultlocale()[1]
++                            try:
++                                # Python >= 3.11
++                                enc = locale.getencoding()
++                            except AttributeError:
++                                enc = locale.getdefaultlocale()[1]
+                             with codecs.open(
+                                 p["value"], encoding=enc, errors="ignore"
+                             ) as f:
+@@ -2588,7 +2592,11 @@ def OnFileSave(self, event):
+ 
+         if dlg.ShowModal() == wx.ID_OK:
+             path = dlg.GetPath()
+-            enc = locale.getdefaultlocale()[1]
++            try:
++                # Python >= 3.11
++                enc = locale.getencoding()
++            except AttributeError:
++                enc = locale.getdefaultlocale()[1]
+             f = codecs.open(path, encoding=enc, mode="w", errors="replace")
+             try:
+                 f.write(text + os.linesep)
+@@ -2612,7 +2620,11 @@ def OnFileText(self, event):
+                 filename = grass.tempfile()
+                 win.SetValue(filename)
+ 
+-            enc = locale.getdefaultlocale()[1]
++            try:
++                # Python >= 3.11
++                enc = locale.getencoding()
++            except AttributeError:
++                enc = locale.getdefaultlocale()[1]
+             f = codecs.open(filename, encoding=enc, mode="w", errors="replace")
+             try:
+                 f.write(text)
+diff --git a/gui/wxpython/gui_core/ghelp.py b/gui/wxpython/gui_core/ghelp.py
+index 3a2e18789d..76f85fb433 100644
+--- a/gui/wxpython/gui_core/ghelp.py
++++ b/gui/wxpython/gui_core/ghelp.py
+@@ -239,7 +239,11 @@ def _pageInfo(self):
+         if not self.langUsed:
+             import locale
+ 
+-            loc = locale.getdefaultlocale()
++            try:
++                # Python >= 3.11
++                loc = locale.getlocale()
++            except AttributeError:
++                loc = locale.getdefaultlocale()
+             if loc == (None, None):
+                 self.langUsed = _("unknown")
+             else:
+diff --git a/gui/wxpython/rlisetup/frame.py b/gui/wxpython/rlisetup/frame.py
+index e2a6a4e7bd..6b239f8c8b 100644
+--- a/gui/wxpython/rlisetup/frame.py
++++ b/gui/wxpython/rlisetup/frame.py
+@@ -58,7 +58,11 @@ def __init__(
+         self.btn_close.Bind(wx.EVT_BUTTON, self.OnClose)
+         self.btn_ok.Bind(wx.EVT_BUTTON, self.OnOk)
+         self._layout()
+-        self.enc = locale.getdefaultlocale()[1]
++        try:
++            # Python >= 3.11
++            self.enc = locale.getencoding()
++        except AttributeError:
++            self.enc = locale.getdefaultlocale()[1]
+ 
+     def _layout(self):
+         """Set the layout"""
+diff --git a/lib/init/grass.py b/lib/init/grass.py
+index 3914c458df..bc8f7cc1df 100755
+--- a/lib/init/grass.py
++++ b/lib/init/grass.py
+@@ -66,7 +66,11 @@
+ # for wxpath
+ _WXPYTHON_BASE = None
+ 
+-ENCODING = locale.getdefaultlocale()[1]
++try:
++    # Python >= 3.11
++    ENCODING = locale.getencoding()
++except AttributeError:
++    ENCODING = locale.getdefaultlocale()[1]
+ if ENCODING is None:
+     ENCODING = "UTF-8"
+     print("Default locale not found, using UTF-8")  # intentionally not translatable
+@@ -1418,7 +1422,11 @@ def set_language(grass_config_dir):
+                 "Default locale settings are missing. GRASS running with C locale.\n"
+             )
+ 
+-        language, encoding = locale.getdefaultlocale()
++        try:
++            # Python >= 3.11
++            language, encoding = locale.getlocale()
++        except AttributeError:
++            language, encoding = locale.getdefaultlocale()
+         if not language:
+             sys.stderr.write(
+                 "Default locale settings are missing. GRASS running with C locale.\n"
+diff --git a/python/grass/gunittest/multirunner.py b/python/grass/gunittest/multirunner.py
+index 3e6fb0ff39..8fe204ffb5 100644
+--- a/python/grass/gunittest/multirunner.py
++++ b/python/grass/gunittest/multirunner.py
+@@ -27,7 +27,11 @@
+ 
+ 
+ def _get_encoding():
+-    encoding = locale.getdefaultlocale()[1]
++    try:
++        # Python >= 3.11
++        encoding = locale.getencoding()
++    except AttributeError:
++        encoding = locale.getdefaultlocale()[1]
+     if not encoding:
+         encoding = "UTF-8"
+     return encoding
+diff --git a/python/grass/script/utils.py b/python/grass/script/utils.py
+index d2f2c63174..ce5aec20a8 100644
+--- a/python/grass/script/utils.py
++++ b/python/grass/script/utils.py
+@@ -163,7 +163,11 @@ def __setattr__(self, key, value):
+ 
+ 
+ def _get_encoding():
+-    encoding = locale.getdefaultlocale()[1]
++    try:
++        # Python >= 3.11
++        encoding = locale.getencoding()
++    except AttributeError:
++        encoding = locale.getdefaultlocale()[1]
+     if not encoding:
+         encoding = "UTF-8"
+     return encoding
+diff --git a/utils/mkhtml.py b/utils/mkhtml.py
+index 47021cbb8c..79028da6e5 100644
+--- a/utils/mkhtml.py
++++ b/utils/mkhtml.py
+@@ -82,7 +82,11 @@
+ 
+ 
+ def _get_encoding():
+-    encoding = locale.getdefaultlocale()[1]
++    try:
++        # Python >= 3.11
++        encoding = locale.getencoding()
++    except AttributeError:
++        encoding = locale.getdefaultlocale()[1]
+     if not encoding:
+         encoding = "UTF-8"
+     return encoding
