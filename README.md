@@ -34,7 +34,7 @@ In principle, you shouldn’t trust binaries from random strangers, but I trust 
 I maintain [a Homebrew tap](https://github.com/DingoBits/homebrew-dingobits) for the pre-packaged QGIS, as well as some of its dependencies. This will allow homebrew to automatically update QGIS when I release a new version. To install:
 
 ```
-brew install --cask dingobits/dingobits/qgis
+brew install --cask dingobits/dingobits/qgis-arm64
 ```
 
 ### 3. Install from MacPorts
